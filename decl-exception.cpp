@@ -2,6 +2,7 @@
 
 Copyright 2015 - 2016 Tideworks Technology
 Author: Roger D. Voss
+ Modifications made Jan. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +21,15 @@ limitations under the License.
 #include <cxxabi.h>
 #include "decl-exception.h"
 
-//#define TEST_SPARTAN_EXCEPTION // uncomment to enable some test code below
+//#define TEST_WATCHDOG_EXCEPTION // uncomment to enable some test code below
 
-char* spartan_exception::type_name(const char * const mangled_name) {
+char* watchdog_exception::type_name(const char * const mangled_name) {
   int status;
   return abi::__cxa_demangle(mangled_name, 0, 0, &status);
 }
 
-void spartan_exception::free_nm(char *p) {
-#if defined(TEST_SPARTAN_EXCEPTION)
+void watchdog_exception::free_nm(char *p) {
+#if defined(TEST_WATCHDOG_EXCEPTION)
   printf("DEBUG - freeing string: \"%s\"\n", p);
 #endif
   std::free(p);
@@ -42,7 +43,7 @@ std::string get_unmangled_name(const char * const mangled_name) {
   return std::string(nm_sp.get());
 }
 
-#if defined(TEST_SPARTAN_EXCEPTION)
+#if defined(TEST_WATCHDOG_EXCEPTION)
 
 DECL_EXCEPTION(create_jvm)
 

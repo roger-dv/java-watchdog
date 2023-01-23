@@ -2,6 +2,7 @@
 
 Copyright 2015 - 2016 Tideworks Technology
 Author: Roger D. Voss
+ Modifications made Jan. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,51 +26,51 @@ limitations under the License.
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreorder"
-class spartan_exception : public std::exception {
+class watchdog_exception : public std::exception {
 protected:
   virtual void make_abstract() = 0;
 protected:
   static void free_nm(char *p);
-  std::unique_ptr<char, decltype(&free_nm)> _nm{ nullptr, &free_nm };
-  std::string _msg;
+  std::unique_ptr<char, decltype(&free_nm)> name_fld{nullptr, &free_nm };
+  std::string msg_fld;
   char* type_name(const char * const mangled_name);
-  explicit spartan_exception(const char * const mangled_type_name, const char * const msg)
-    : _msg{ msg } { _nm.reset(type_name(mangled_type_name)); }
-  explicit spartan_exception(const char * const mangled_type_name, std::string &msg)
-    : _msg{ std::move(msg) } { _nm.reset(type_name(mangled_type_name)); }
-  spartan_exception() = default;
+  explicit watchdog_exception(const char * const mangled_type_name, const char * const msg)
+    : msg_fld{msg } { name_fld.reset(type_name(mangled_type_name)); }
+  explicit watchdog_exception(const char * const mangled_type_name, std::string &msg)
+    : msg_fld{std::move(msg) } { name_fld.reset(type_name(mangled_type_name)); }
+  watchdog_exception() = default;
 public:
-  spartan_exception(const char * const msg) = delete;
-  spartan_exception(std::string &&) = delete;
-  spartan_exception(const std::string &) = delete;
-  spartan_exception(std::string &) = delete;
-  spartan_exception(const spartan_exception &) = delete;
-  spartan_exception& operator=(const spartan_exception &) = delete;
-  spartan_exception(spartan_exception &&) = delete;
-  spartan_exception& operator=(spartan_exception &&) = delete;
-  ~spartan_exception() override = default;
+  watchdog_exception(const char * const msg) = delete;
+  watchdog_exception(std::string &&) = delete;
+  watchdog_exception(const std::string &) = delete;
+  watchdog_exception(std::string &) = delete;
+  watchdog_exception(const watchdog_exception &) = delete;
+  watchdog_exception& operator=(const watchdog_exception &) = delete;
+  watchdog_exception(watchdog_exception &&) = delete;
+  watchdog_exception& operator=(watchdog_exception &&) = delete;
+  ~watchdog_exception() override = default;
 public:
-  virtual const char* name() const throw()  { return _nm.get(); }
-  const char* what() const throw() override { return _msg.c_str(); }
+  virtual const char* name() const throw()  { return name_fld.get(); }
+  const char* what() const throw() override { return msg_fld.c_str(); }
 };
 #pragma GCC diagnostic pop
 
 #define DECL_EXCEPTION(x) \
-class x##_exception : public spartan_exception {\
+class x##_exception : public watchdog_exception {\
 protected:\
   void make_abstract() override {}\
 public:\
   x##_exception() = delete;\
-  explicit x##_exception(const char * const msg) : spartan_exception{ typeid(*this).name(), msg } {}\
-  explicit x##_exception(std::string &&msg) : spartan_exception{ typeid(*this).name(), msg } {}\
+  explicit x##_exception(const char * const msg) : watchdog_exception{ typeid(*this).name(), msg } {}\
+  explicit x##_exception(std::string &&msg) : watchdog_exception{ typeid(*this).name(), msg } {}\
   x##_exception(const std::string &) = delete;\
   x##_exception(std::string &) = delete;\
   x##_exception(const x##_exception &) = delete;\
   x##_exception& operator=(const x##_exception &) = delete;\
-  x##_exception(x##_exception &&ex) noexcept : spartan_exception() { this->operator=(std::move(ex)); }\
+  x##_exception(x##_exception &&ex) noexcept : watchdog_exception() { this->operator=(std::move(ex)); }\
   x##_exception& operator=(x##_exception &&ex) noexcept {\
-    this->_nm  = std::move(ex._nm);\
-    this->_msg = std::move(ex._msg);\
+    this->name_fld  = std::move(ex.name_fld);\
+    this->msg_fld = std::move(ex.msg_fld);\
     return *this;\
   }\
   ~x##_exception() override = default;\

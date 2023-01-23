@@ -8,10 +8,11 @@ http://code.google.com/p/inih/
 Copyright (c) 2009, Ben Hoyt
 All rights reserved.
 
-inih library license: https://raw.githubusercontent.com/benhoyt/inih/master/LICENSE.txt
+ini.h library license: https://raw.githubusercontent.com/benhoyt/inih/master/LICENSE.txt
 
-Enhanced for use of C++11 syntax and features; May 2015, Roger D. Voss
-clang-tidy inspection recommendations applied; Dec 2018, Roger D. Voss
+Enhanced for use of C++11 syntax and features;        May 2015, Roger D. Voss
+clang-tidy inspection recommendations applied;        Dec 2018, Roger D. Voss
+Applied attribute to prohibit inlining of strncpy0;   Jan 2023, Roger D. Voss
 
 */
 #include <cctype>

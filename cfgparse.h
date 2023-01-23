@@ -2,6 +2,7 @@
 
 Copyright 2015 - 2016 Tideworks Technology
 Author: Roger D. Voss
+ Modifications made Jan. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +26,6 @@ limitations under the License.
 // declare process_cfg_exception
 DECL_EXCEPTION(process_cfg)
 
-bool process_config(const char * const dirpath, const char * const cfgfilename, const cfg_parse_handler_t &handler);
+bool process_config(const char * const cfg_full_filepath, const cfg_parse_handler_t &handler);
 
 #endif // __CFGPARSE_H__

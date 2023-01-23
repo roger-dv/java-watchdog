@@ -2,6 +2,7 @@
 
 Copyright 2015 - 2016 Tideworks Technology
 Author: Roger D. Voss
+ Modifications made Jan. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,19 +20,18 @@ limitations under the License.
 #include <sys/stat.h>
 #include <list>
 #include <sstream>
-#include "path-concat.h"
 #include "format2str.h"
 #include "cfgparse.h"
 
 static const char config_file_parse_err_fmt[] = "config file parsing error %d in %s() at line %d\n";
-static const char config_file_load_err_fmt[]  = "can't load \"%s\"\n";
+static const char config_file_load_err_fmt[]  = "can't load config file \"%s\"\n";
 
-bool process_config(const char * const dirpath, const char * const cfgfilename, const cfg_parse_handler_t &handler) {
-  const std::string cfgfullfilepath(path_concat(dirpath, cfgfilename));
-
+bool process_config(const char * const cfg_full_filepath, const cfg_parse_handler_t &handler) {
   // check to see if specified config file exist
   struct stat statbuf{};
-  if (stat(cfgfullfilepath.c_str(), &statbuf) == -1 || (statbuf.st_mode & S_IFMT) != S_IFREG) {
+  if (stat(cfg_full_filepath, &statbuf) == -1 ||
+      ((statbuf.st_mode & S_IFMT) != S_IFREG || (statbuf.st_mode & S_IFMT) == S_IFLNK))
+  {
     return false;
   }
 
@@ -42,8 +42,8 @@ bool process_config(const char * const dirpath, const char * const cfgfilename, 
     err_list.emplace_back(std::move(errmsg));
   };
 
-  if (ini_parse(cfgfullfilepath.c_str(), handler, err_code_notify) < 0) {
-    auto errmsg( format2str(config_file_load_err_fmt, cfgfullfilepath.c_str()) );
+  if (ini_parse(cfg_full_filepath, handler, err_code_notify) != 0) {
+    auto errmsg( format2str(config_file_load_err_fmt, cfg_full_filepath) );
     err_list.emplace_front(std::move(errmsg));
 
     std::stringstream ss;

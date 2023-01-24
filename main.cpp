@@ -44,7 +44,7 @@ static std::string get_env_var(const char * const name) {
   return val != nullptr ? std::string(val) : std::string();
 }
 
-static std::string find_program_path(const char * const prog, const char * const path_var_name) {
+static std::string find_program_path(const char * const prog, const char * const path_var_name, ACCEPT_ORDINAL ao) {
   const std::string path_env_var = get_env_var(path_var_name);
 
   if (path_env_var.empty()) {
@@ -164,42 +164,42 @@ int main(int argc, const char *argv[]) {
 
           std::string s_section{section};
           to_lower(s_section);
-          if (s_section.compare("settings")) {
+          if (s_section.compare("settings") == 0) {
             std::string s_name{name};
             to_lower(s_name);
             std::string s_value{value_cstr};
             to_lower(s_value);
-            if (s_name.compare("logging_level")) {
-              if (s_value.compare("trace")) {
+            if (s_name.compare("logging_level") == 0) {
+              if (s_value.compare("trace") == 0) {
                 logging_level = LL::TRACE;
-              } else if (s_value.compare("debug")) {
+              } else if (s_value.compare("debug") == 0) {
                 logging_level = LL::DEBUG;
-              } else if (s_value.compare("info")) {
+              } else if (s_value.compare("info") == 0) {
                 logging_level = LL::INFO;
-              } else if (s_value.compare("warn")) {
+              } else if (s_value.compare("warn") == 0) {
                 logging_level = LL::WARN;
-              } else if (s_value.compare("err")) {
+              } else if (s_value.compare("err") == 0) {
                 logging_level = LL::ERR;
               } else {
                 logging_level = LL::INFO;
                 log(LL::WARN, "logging level '%s' not recognized - defaulting to INFO", value_cstr);
               }
-            } else if (s_name.compare("accept_ordinal")) {
-              if (s_value.compare("first_found")) {
+            } else if (s_name.compare("accept_ordinal") == 0) {
+              if (s_value.compare("first_found") == 0) {
                 accept_ordinal = AO::FIRST_FOUND;
-              } else if (s_value.compare("last_found")) {
+              } else if (s_value.compare("last_found") == 0) {
                 accept_ordinal = AO::LAST_FOUND;
-              } else if (s_value.compare("second_found")) {
+              } else if (s_value.compare("second_found") == 0) {
                 accept_ordinal = AO::SECOND_FOUND;
-              } else if (s_value.compare("third_found")) {
+              } else if (s_value.compare("third_found") == 0) {
                 accept_ordinal = AO::THIRD_FOUND;
-              } else if (s_value.compare("fourth_found")) {
+              } else if (s_value.compare("fourth_found") == 0) {
                 accept_ordinal = AO::FOURTH_FOUND;
-              } else if (s_value.compare("fifth_found")) {
+              } else if (s_value.compare("fifth_found") == 0) {
                 accept_ordinal = AO::FIFTH_FOUND;
-              } else if (s_value.compare("sixth_found")) {
+              } else if (s_value.compare("sixth_found") == 0) {
                 accept_ordinal = AO::SIXTH_FOUND;
-              } else if (s_value.compare("seventh_found")) {
+              } else if (s_value.compare("seventh_found") == 0) {
                 accept_ordinal = AO::SEVENTH_FOUND;
               } else {
                 accept_ordinal = AO::FIRST_FOUND;
@@ -212,7 +212,7 @@ int main(int argc, const char *argv[]) {
           } else {
             log(LL::WARN, "unrecognized config section '%s' ignored", section);
           }
-          return 0;
+          return 1;
         };
 
     try {
@@ -225,16 +225,23 @@ int main(int argc, const char *argv[]) {
       // reset to defaults
       logging_level = LL::INFO;
       accept_ordinal = AO::FIRST_FOUND;
-      log(LL::WARN, "failed processing config file - using default settings:\n\t%s:%s", ex.name(), ex.what());
+      log(LL::WARN, "failed processing config file - using default settings:\n\t%s: %s", ex.name(), ex.what());
     }
   }
 
+  set_level(logging_level);
+
+  // determine the path to the Java launcher program by
+  // searching the PATH environment variable path string
+  std::string java_prog_path;
   try {
     // determine fully qualified path to the program
-    const auto java_prog_path = find_program_path("java", "PATH");
-    log(LL::DEBUG, "Java launcher program: \"%s\"", java_prog_path.c_str());
+    java_prog_path = find_program_path("java", "PATH", accept_ordinal);
   } catch(const find_program_path_exception &ex) {
     log(LL::ERR, "could not locate a Java launcher program:\n\t%s: %s", ex.name(), ex.what());
+    return 1;
   }
+  log(LL::DEBUG, "Java launcher program: \"%s\"", java_prog_path.c_str());
+
   return 0;
 }

@@ -58,7 +58,9 @@ static std::string find_program_path(const char * const prog, const char * const
   char *save = nullptr;
   const char * path = strtok_r(const_cast<char*>(path_env_var_dup), delim, &save);
 
-  while (path != nullptr) {
+  std::string last_found_valid_path;
+
+  for (int i = 0; path != nullptr;) {
     log(LL::TRACE, "'%s'", path);
     const std::string_view sv_path{path};
     const auto full_path = sv_path.ends_with(kPathSeparator) ?
@@ -69,9 +71,40 @@ static std::string find_program_path(const char * const prog, const char * const
     if (stat(full_path.c_str(), &statbuf) != -1 &&
         ((statbuf.st_mode & S_IFMT) == S_IFREG || (statbuf.st_mode & S_IFMT) == S_IFLNK))
     {
-      return full_path;
+      last_found_valid_path = full_path;
+      log(LL::DEBUG, "'%s'", last_found_valid_path.c_str());
+      bool matches_ao = false;
+      switch(++i) {
+        case 1:
+          matches_ao = ao == AO::FIRST_FOUND;
+          break;
+        case 2:
+          matches_ao = ao == AO::SECOND_FOUND;
+          break;
+        case 3:
+          matches_ao = ao == AO::THIRD_FOUND;
+          break;
+        case 4:
+          matches_ao = ao == AO::FOURTH_FOUND;
+          break;
+        case 5:
+          matches_ao = ao == AO::FIFTH_FOUND;
+          break;
+        case 6:
+          matches_ao = ao == AO::SIXTH_FOUND;
+          break;
+        case 7:
+          matches_ao = ao == AO::SEVENTH_FOUND;
+          break;
+      }
+      if (matches_ao) {
+        return last_found_valid_path;
+      }
     }
     path = strtok_r(nullptr, delim, &save);
+    if (ao == AO::LAST_FOUND && path == nullptr) {
+      return last_found_valid_path;
+    }
   }
 
   const char * const err_msg_fmt = "could not locate program '%s' via %s environment variable";
@@ -146,7 +179,7 @@ static void one_time_init_main(int argc, const char *argv[])
 #pragma clang diagnostic pop
 
 int main(int argc, const char *argv[]) {
-  set_level(LL::DEBUG); // comment out this line to disable debug logging verbosity
+  set_level(LL::TRACE); // comment out this line to disable debug/trace logging verbosity
   one_time_init_main(argc, argv);
 
   // initialized to default settings

@@ -2,6 +2,8 @@
 #include <cstring>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <popt.h>
 #include "decl-exception.h"
 #include "format2str.h"
 #include "path-concat.h"
@@ -245,7 +247,7 @@ int main(int argc, const char *argv[]) {
           } else {
             log(LL::WARN, "unrecognized config section '%s' ignored", section);
           }
-          return 1;
+          return EXIT_FAILURE;
         };
 
     try {
@@ -272,9 +274,69 @@ int main(int argc, const char *argv[]) {
     java_prog_path = find_program_path("java", "PATH", accept_ordinal);
   } catch(const find_program_path_exception &ex) {
     log(LL::ERR, "could not locate a Java launcher program:\n\t%s: %s", ex.name(), ex.what());
-    return 1;
+    return EXIT_FAILURE;
   }
   log(LL::DEBUG, "Java launcher program: \"%s\"", java_prog_path.c_str());
 
-  return 0;
+  // will use argc_arg and argv_arg in execv() call
+  int argc_arg = 0;
+  const char **argv_arg = nullptr;
+  {
+    // duplicate the current argv array
+    int rtn = poptDupArgv(argc, argv, &argc_arg, &argv_arg);
+    if (rtn != 0) {
+      const char *const errmsg = poptStrerror(rtn);
+      log(LL::ERR, "parent pid(%d) failed parsing command line args:\n\t%s", getpid(), errmsg);
+      return EXIT_FAILURE;
+    }
+    // replace first argv entry of program path with path to the java launcher executable
+    argv_arg[0] = strdup(java_prog_path.c_str());
+    if (is_debug_level()) {
+      log(LL::DEBUG, "pid(%d): argc: %d ; first arg: '%s', second arg: '%s'",
+          getpid(), argc_arg, argv_arg[0], argv_arg[1]);
+    }
+  }
+
+  const pid_t pid = fork();
+  if (pid == -1) {
+    log(LL::ERR, "pid(%d): fork() of Java main() entry point failed: %s", getpid(), strerror(errno));
+    return EXIT_FAILURE;
+  } else if (pid == 0) {
+    // child process
+    if (is_debug_level()) {
+      log(LL::DEBUG, "pid(%d): argc: %d ; first arg: '%s', second arg: '%s'",
+          getpid(), argc_arg, argv_arg[0], argv_arg[1]);
+    }
+    // this forked child process will now become the found java launcher program
+    // (the supplied command line arguments will now be applied to the java launcher)
+    int rc = execv(java_prog_path.c_str(), (char**) argv_arg);
+    if (rc == -1) {
+      log(LL::ERR, "pid(%d): failed to exec '%s': %s", getpid(), java_prog_path.c_str(), strerror(errno));
+      return EXIT_FAILURE;
+    }
+  } else {
+    // free the heap-duplicated command line args (not needed in the parent process)
+    free((void*) argv_arg[0]);
+    argv_arg[0] = nullptr;
+    free(argv_arg); // was heap-allocated via poptDupArgv() above, prior to fork() call
+
+    // now wait on the child process pid (the java launcher program)
+    int status = 0;
+    do {
+      if (waitpid(pid, &status, 0) == -1) {
+        log(LL::ERR, "failed waiting for forked launcher child process (pid:%d): %s",
+            getpid(), strerror(errno));
+        return EXIT_FAILURE;
+      }
+      if (WIFSIGNALED(status) || WIFSTOPPED(status)) {
+        log(LL::ERR, "interrupted waiting for forked launcher child process (pid:%d)", pid);
+        return EXIT_FAILURE;
+      }
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+    log(LL::DEBUG, "%s(): **** fork/exec Java launcher child process (pid:%d) for '%s' completed ****\n",
+        __FUNCTION__, pid, java_prog_path.c_str());
+  }
+
+  return EXIT_SUCCESS;
 }

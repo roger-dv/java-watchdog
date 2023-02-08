@@ -2,6 +2,7 @@
 
 Copyright 2016 Tideworks Technology
 Author: Roger D. Voss
+ Modifications made Feb. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +20,7 @@ limitations under the License.
 #include <string>
 #include "path-concat.h"
 
-std::string path_concat(const char * const str1, const char * const str2) {
+std::string path_concat(const std::string_view str1, const std::string_view str2) {
   std::string path_rslt{str1};
   const auto len = path_rslt.length();
   if (len > 0) {

@@ -3,6 +3,7 @@
 Copyright 2015 - 2016 Tideworks Technology
 Author: Roger D. Voss
  Modifications made Jan. 2023 by R.D. Voss
+ Modifications made Feb. 2023 by R.D. Voss
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,10 +27,10 @@ limitations under the License.
 static const char config_file_parse_err_fmt[] = "config file parsing error %d in %s() at line %d\n";
 static const char config_file_load_err_fmt[]  = "can't load config file \"%s\"\n";
 
-bool process_config(const char * const cfg_full_filepath, const cfg_parse_handler_t &handler) {
+bool process_config(const std::string_view cfg_full_filepath, const cfg_parse_handler_t &handler) {
   // check to see if specified config file exist
   struct stat statbuf{};
-  if (stat(cfg_full_filepath, &statbuf) == -1 ||
+  if (stat(cfg_full_filepath.data(), &statbuf) == -1 ||
       ((statbuf.st_mode & S_IFMT) != S_IFREG || (statbuf.st_mode & S_IFMT) == S_IFLNK))
   {
     return false;
@@ -37,13 +38,13 @@ bool process_config(const char * const cfg_full_filepath, const cfg_parse_handle
 
   std::list<std::string> err_list;
 
-  auto const err_code_notify = [&err_list](int ec, const char* op, int ln) {
-    auto errmsg( format2str(config_file_parse_err_fmt, ec, op, ln) );
+  auto const err_code_notify = [&err_list](int ec, const std::string_view op, int ln) {
+    auto errmsg( format2str(config_file_parse_err_fmt, ec, op.data(), ln) );
     err_list.emplace_back(std::move(errmsg));
   };
 
   if (ini_parse(cfg_full_filepath, handler, err_code_notify) != 0) {
-    auto errmsg( format2str(config_file_load_err_fmt, cfg_full_filepath) );
+    auto errmsg( format2str(config_file_load_err_fmt, cfg_full_filepath.data()) );
     err_list.emplace_front(std::move(errmsg));
 
     std::stringstream ss;

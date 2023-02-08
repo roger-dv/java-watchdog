@@ -13,6 +13,7 @@ ini.h library license: https://raw.githubusercontent.com/benhoyt/inih/master/LIC
 Enhanced for use of C++11 syntax and features;        May 2015, Roger D. Voss
 clang-tidy inspection recommendations applied;        Dec 2018, Roger D. Voss
 Applied attribute to prohibit inlining of strncpy0;   Jan 2023, Roger D. Voss
+Changed API from using const char* to string_view;    Feb 2023, Roger D. Voss
 
 */
 #include <cctype>
@@ -180,7 +181,7 @@ int ini_parse(FILE* file, const cfg_parse_handler_t &handler, const err_code_han
   return ini_parse_file_core(file, handler, error_code);
 }
 
-int ini_parse(const char* filename, const cfg_parse_handler_t &handler, const err_code_handler_t &error_code)
+int ini_parse(const std::string_view filename, const cfg_parse_handler_t &handler, const err_code_handler_t &error_code)
 {
     int error = 0;
     auto const close_file = [&error](FILE *f) {
@@ -190,7 +191,7 @@ int ini_parse(const char* filename, const cfg_parse_handler_t &handler, const er
         }
       }
     };
-    FILE* const file = fopen(filename, "r");
+    FILE* const file = fopen(filename.data(), "r");
     if (file == nullptr) {
         error_code(errno, __func__, __LINE__); // open file error
         return -1;

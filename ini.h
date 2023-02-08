@@ -10,8 +10,10 @@ All rights reserved.
 
 inih library license: https://raw.githubusercontent.com/benhoyt/inih/master/LICENSE.txt
 
-Enhanced for use of C++11 syntax and features; May 2015, Roger D. Voss
-clang-tidy inspection recommendations applied; Dec 2018, Roger D. Voss
+Enhanced for use of C++11 syntax and features;        May 2015, Roger D. Voss
+clang-tidy inspection recommendations applied;        Dec 2018, Roger D. Voss
+Applied attribute to prohibit inlining of strncpy0;   Jan 2023, Roger D. Voss
+Changed API from using const char* to string_view;    Feb 2023, Roger D. Voss
 
 */
 #ifndef __INI_H__
@@ -20,8 +22,8 @@ clang-tidy inspection recommendations applied; Dec 2018, Roger D. Voss
 #include <functional>
 #include <cstdio>
 
-using cfg_parse_handler_t = std::function<int (const char*, const char*, const char*)>;
-using err_code_handler_t = std::function<void (int ec, const char* op, int ln)>;
+using cfg_parse_handler_t = std::function<int (const std::string_view, const std::string_view, const std::string_view)>;
+using err_code_handler_t  = std::function<void (int ec, const std::string_view op, int ln)>;
 
 /* Parse given INI-style file. May have [section]s, name=value pairs
    (whitespace stripped), and comments starting with ';' (semicolon). Section
@@ -36,7 +38,7 @@ using err_code_handler_t = std::function<void (int ec, const char* op, int ln)>;
    stop on first error), -1 on file open error, or -2 on memory allocation
    error (only when INI_USE_STACK is zero).
 */
-int ini_parse(const char *const filename, const cfg_parse_handler_t &handler, const err_code_handler_t &error_code);
+int ini_parse(const std::string_view filename, const cfg_parse_handler_t &handler, const err_code_handler_t &error_code);
 
 /* Same as ini_parse(), but takes a FILE* instead of filename. This doesn't
    close the file when it's finished -- the caller must do that. */

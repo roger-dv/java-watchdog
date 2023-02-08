@@ -38,30 +38,32 @@ namespace logger {
   static volatile LOGGING_LEVEL loggingLevel = DEFAULT_LOGGING_LEVEL;
   static std::string_view s_progname;
   static bool s_syslogging_enabled = true;
-  static std::function<void(const char*, const bool)> s_call_openlog = [](const char* const ident, bool is_enabled) {
+  using call_openlog_t = std::function<void(const std::string_view, const bool)>;
+  static call_openlog_t s_call_openlog = [](const std::string_view ident, bool is_enabled) {
     if (is_enabled) {
-      openlog(ident, LOG_PID, LOG_DAEMON);
+      openlog(ident.data(), LOG_PID, LOG_DAEMON);
     }
   };
-  static std::function<void(const char*, const char*)> s_syslog = [](const char* const level, const char* const msg) {
-    syslog(LOG_ERR, "%s: %s", level, msg);
+  using call_syslog_t = std::function<void(const std::string_view, const std::string_view)>;
+  static call_syslog_t s_syslog = [](const std::string_view level, const std::string_view msg) {
+    syslog(LOG_ERR, "%s: %s", level.data(), msg.data());
   };
 
   // NOTE: this property must be set on the logger namespace subsystem prior to use of its functions
-  void set_progname(const char *const progname) {
+  void set_progname(const std::string_view progname) {
     const char * tmp_prg_name;
-    s_progname = tmp_prg_name = strdup(progname);
+    s_progname = tmp_prg_name = strdup(progname.data());
     s_call_openlog(tmp_prg_name, s_syslogging_enabled);
-    s_call_openlog = [](const char* const ident, bool is_enabled) {};
+    s_call_openlog = [](const std::string_view ident, bool is_enabled) {};
   }
 
   void set_syslogging(bool is_syslogging_enabled) {
     s_syslogging_enabled = is_syslogging_enabled;
     const char * const tmp_prg_name = strndupa(s_progname.data(), s_progname.size());
     s_call_openlog(tmp_prg_name, is_syslogging_enabled);
-    s_call_openlog = [](const char* const ident, bool is_enabled) {};
+    s_call_openlog = [](const std::string_view ident, bool is_enabled) {};
     if (!is_syslogging_enabled) {
-      s_syslog = [](const char*, const char*) {};
+      s_syslog = [](const std::string_view, const std::string_view) {};
     }
   }
 
@@ -84,8 +86,8 @@ namespace logger {
     return ltrim(rtrim(s));
   }
 
-  LOGGING_LEVEL str_to_level(const char *const logging_level) {
-    std::string log_level(logging_level);
+  LOGGING_LEVEL str_to_level(const std::string_view logging_level) {
+    std::string log_level{logging_level};
     trim(log_level);
     std::transform(log_level.begin(), log_level.end(), log_level.begin(), ::toupper);
     if (log_level == "TRACE") return LL::TRACE;
@@ -106,44 +108,44 @@ namespace logger {
     setvbuf(stderr, nullptr, _IONBF, 0);
   }
 
-  void vlog(LOGGING_LEVEL level, const char * const fmt, va_list ap) {
+  void vlog(LOGGING_LEVEL level, const std::string_view fmt, va_list ap) {
     if ((char) level < (char) loggingLevel) {
       return;
     }
 
     auto stream = stdout;
-    const char *levelstr = ": ";
-    decltype(s_syslog) syslog_it = [](const char*, const char*) {};
-    const char *syslog_level = "";
+    std::string_view level_str = ": ";
+    call_syslog_t syslog_it = [](const std::string_view, const std::string_view) {};
+    std::string_view syslog_level = "";
     switch (level) {
       case LL::FATAL:
-        levelstr = ": FATAL: ";
+        level_str = ": FATAL: ";
         stream = stderr;
         syslog_it = s_syslog;
         syslog_level = "FATAL";
         break;
       case LL::ERR:
-        levelstr = ": ERROR: ";
+        level_str = ": ERROR: ";
         stream = stderr;
         syslog_it = s_syslog;
         syslog_level = "ERROR";
         break;
       case LL::WARN:
-        levelstr = ": WARN: ";
+        level_str = ": WARN: ";
         stream = stderr;
         break;
       case LL::INFO:
-        levelstr = ": INFO: ";
+        level_str = ": INFO: ";
         break;
       case LL::DEBUG:
-        levelstr = ": DEBUG: ";
+        level_str = ": DEBUG: ";
         break;
       case LL::TRACE:
-        levelstr = ": TRACE: ";
+        level_str = ": TRACE: ";
         break;
     }
 
-    const auto len = s_progname.size() + strlen(levelstr);
+    const auto len = s_progname.size() + level_str.size();
     const auto buf_extra_size = len + sizeof(CNEWLINE) + sizeof(CNULLTRM);
     int buf_size = DEFAULT_STRBUF_SIZE;
     size_t total_buf_size = buf_size + buf_extra_size;
@@ -154,15 +156,15 @@ namespace logger {
     va_copy(parm_copy, ap);
     {
       strncpy(strbuf, s_progname.data(), s_progname.size());
-      strcpy(strbuf + s_progname.size(), levelstr);
-      n = vsnprintf(strbuf + len, (size_t) n, fmt, ap);
+      strcpy(strbuf + s_progname.size(), level_str.data());
+      n = vsnprintf(strbuf + len, (size_t) n, fmt.data(), ap);
       assert(n > 0);
       if (n >= static_cast<int>(msgbuf_size)) {
         total_buf_size = (buf_size = ++n) + buf_extra_size;
         strbuf = (char*) alloca(total_buf_size);
         strncpy(strbuf, s_progname.data(), s_progname.size());
-        strcpy(strbuf + s_progname.size(), levelstr);
-        n = vsnprintf(strbuf + len, (size_t) n, fmt, parm_copy);
+        strcpy(strbuf + s_progname.size(), level_str.data());
+        n = vsnprintf(strbuf + len, (size_t) n, fmt.data(), parm_copy);
         assert(n > 0 && n < buf_size);
       }
     }
@@ -174,7 +176,7 @@ namespace logger {
     syslog_it(syslog_level, strbuf + len);
   }
 
-  void log(LOGGING_LEVEL level, const char * const fmt, ...) {
+  void log(LOGGING_LEVEL level, const std::string_view fmt, ...) {
     if ((char) level < (char) loggingLevel) {
       return;
     }
@@ -185,7 +187,7 @@ namespace logger {
     va_end(ap);
   }
 
-  void logm(LOGGING_LEVEL level, const char * const msg) {
+  void logm(LOGGING_LEVEL level, const std::string_view msg) {
     log(level, "%s", msg);
   }
 } // namespace logger

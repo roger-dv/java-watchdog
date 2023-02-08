@@ -22,18 +22,18 @@ limitations under the License.
 //#undef NDEBUG // uncomment this line to enable asserts in use below
 #include <cassert>
 
-std::string vformat2str(const char *const fmt, va_list ap) {
+std::string vformat2str(const std::string_view fmt, va_list ap) {
   int strbuf_size = 256;
   int n = strbuf_size;
   char *strbuf = (char*) alloca(strbuf_size);
   va_list parm_copy;
   va_copy(parm_copy, ap);
   {
-    n = vsnprintf(strbuf, (size_t) n, fmt, ap);
+    n = vsnprintf(strbuf, (size_t) n, fmt.data(), ap);
     assert(n > 0);
     if (n >= strbuf_size) {
       strbuf = (char*) alloca(strbuf_size = ++n);
-      n = vsnprintf(strbuf, (size_t) n, fmt, parm_copy);
+      n = vsnprintf(strbuf, (size_t) n, fmt.data(), parm_copy);
       assert(n > 0 && n < strbuf_size);
     }
   }
@@ -41,10 +41,10 @@ std::string vformat2str(const char *const fmt, va_list ap) {
   return std::string(strbuf);
 }
 
-std::string format2str(const char *const fmt, ...) {
+std::string format2str(const std::string_view fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  auto rslt( vformat2str(fmt, ap) );
+  auto rslt= vformat2str(fmt, ap);
   va_end(ap);
   return rslt;
 }

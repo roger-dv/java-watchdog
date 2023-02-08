@@ -1,3 +1,22 @@
+/* main.cpp
+
+Copyright 2023 Roger D. Voss
+
+Created by roger-dv on 02/07/2023.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
 #include <string_view>
 #include <cstring>
 #include <sys/file.h>
@@ -27,7 +46,7 @@ static std::string_view s_progpath;
 static std::string_view s_progname;
 inline int get_parent_pid() { return s_parent_thrd_pid; }
 const char* progpath() { return s_progpath.data(); }
-const char* progname() { return s_progname.data(); }
+const std::string_view progname() { return s_progname; }
 
 enum class ACCEPT_ORDINAL : char {
   FIRST_FOUND = 0,
@@ -122,8 +141,8 @@ static std::string locate_cfg_file() {
       case 3: // using HOME directory
         dir = get_env_var("HOME");
         if (dir.empty()) continue;
-        dir = path_concat(dir.c_str(), ".config");
-        dir = path_concat(dir.c_str(), "java-watchdog");
+        dir = path_concat(dir, ".config");
+        dir = path_concat(dir, "java-watchdog");
         break;
       case 2:
         dir = "."; // using current working directory
@@ -133,7 +152,7 @@ static std::string locate_cfg_file() {
       default:
         return ""; // tried all possible dir locations but failed to find a config file
     }
-    cfg_file_path = path_concat(dir.c_str(), cfg_file_name.data());
+    cfg_file_path = path_concat(dir, cfg_file_name);
     if (stat(cfg_file_path.c_str(), &statbuf) == -1 ||
         ((statbuf.st_mode & S_IFMT) != S_IFREG || (statbuf.st_mode & S_IFMT) == S_IFLNK))
     {
@@ -191,7 +210,7 @@ int main(int argc, const char *argv[]) {
   const auto cfg_file_path = locate_cfg_file();
   if (!cfg_file_path.empty()) {
     auto prs_cfg_callback =
-        [&logging_level, &accept_ordinal](const char *section, const char *name, const char *value_cstr)
+        [&logging_level, &accept_ordinal](const std::string_view section, const std::string_view name, const std::string_view value)
         {
           const auto to_lower = [](std::string &str) {
             transform(str.begin(), str.end(), str.begin(), ::tolower);
@@ -202,7 +221,7 @@ int main(int argc, const char *argv[]) {
           if (s_section.compare("settings") == 0) {
             std::string s_name{name};
             to_lower(s_name);
-            std::string s_value{value_cstr};
+            std::string s_value{value};
             to_lower(s_value);
             if (s_name.compare("logging_level") == 0) {
               if (s_value.compare("trace") == 0) {
@@ -217,7 +236,7 @@ int main(int argc, const char *argv[]) {
                 logging_level = LL::ERR;
               } else {
                 logging_level = LL::INFO;
-                log(LL::WARN, "logging level '%s' not recognized - defaulting to INFO", value_cstr);
+                log(LL::WARN, "logging level '%s' not recognized - defaulting to INFO", value);
               }
             } else if (s_name.compare("accept_ordinal") == 0) {
               if (s_value.compare("first_found") == 0) {
@@ -239,7 +258,7 @@ int main(int argc, const char *argv[]) {
               } else {
                 accept_ordinal = AO::FIRST_FOUND;
                 log(LL::WARN, "unrecognized settings section %s value '%s' - defaulting to FIRST_FOUND",
-                    name, value_cstr);
+                    name, value);
               }
             } else {
               log(LL::WARN, "unrecognized settings section name '%s' ignored", name);
@@ -251,7 +270,7 @@ int main(int argc, const char *argv[]) {
         };
 
     try {
-      if (!process_config(cfg_file_path.c_str(), prs_cfg_callback)) {
+      if (!process_config(cfg_file_path, prs_cfg_callback)) {
         // reset to defaults
         logging_level = LL::INFO;
         accept_ordinal = AO::FIRST_FOUND;

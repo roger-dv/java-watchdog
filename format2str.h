@@ -22,8 +22,8 @@ limitations under the License.
 #include <string>
 #include <cstdarg>
 
-std::string vformat2str(const char *const fmt, va_list ap);
+std::string vformat2str(const std::string_view fmt, va_list ap);
 
-std::string format2str(const char *const fmt, ...);
+std::string format2str(const std::string_view fmt, ...);
 
 #endif //__FORMAT2STR_H__

@@ -60,11 +60,28 @@ enum class ACCEPT_ORDINAL : char {
 };
 using AO = ACCEPT_ORDINAL;
 
+/**
+ * Returns the value string of a specified environment variable.
+ *
+ * @param name specified environment variable
+ * @return if environment variable exist then returns its string value, otherwise returns empty string
+ */
 static std::string get_env_var(const char * const name) {
   char * const val = getenv(name);
   return val != nullptr ? std::string(val) : std::string();
 }
 
+/**
+ * Searches a specified environment variable (typically PATH), where assumes are
+ * directory paths seperated by the platform path separator character (e.g., ':').
+ * Looks for occurrence of the specified program. An ACCEPT_ORDINAL parameter is
+ * used to specify which occurrence to accept and return as the function's result.
+ *
+ * @param prog the program to search for
+ * @param path_var_name the environment path variable to search the directories of
+ * @param ao the ordinal sequence of any found occurrences of prog to be returned
+ * @return a found occurrence of prog; throws an exception if none found
+ */
 static std::string find_program_path(const char * const prog, const char * const path_var_name, ACCEPT_ORDINAL ao) {
   const std::string path_env_var = get_env_var(path_var_name);
 
@@ -84,7 +101,7 @@ static std::string find_program_path(const char * const prog, const char * const
   for (int i = 0; path != nullptr;) {
     log(LL::TRACE, "'%s'", path);
     const std::string_view sv_path{path};
-    const auto full_path = sv_path.ends_with(kPathSeparator) ?
+    const auto full_path = sv_path.back() == kPathSeparator ?
         format2str("%s%s", path, prog) : format2str("%s%c%s", path, kPathSeparator, prog);
     log(LL::TRACE, "'%s'", full_path.c_str());
     // check to see if program file path exist
@@ -132,6 +149,19 @@ static std::string find_program_path(const char * const prog, const char * const
   throw find_program_path_exception(format2str(err_msg_fmt, prog, path_var_name));
 }
 
+/**
+ * Looks for 'config.ini' file in three different locations (in order of precedence):
+ * <p>
+ * 1) "${HOME}/.config/java-watchdog/"
+ * <p>
+ * 2) current working directory
+ * <p>
+ * 3) executing program's directory
+ * <p>
+ * The 'config.ini' is used to provide options to the java-launcher program.
+ *
+ * @return the full file path of a found 'config.ini' or else an empty string if not found
+ */
 static std::string locate_cfg_file() {
   std::string dir;
   std::string cfg_file_path;
@@ -166,6 +196,18 @@ static std::string locate_cfg_file() {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "LocalValueEscapesScope"
 #pragma ide diagnostic ignored "UnreachableCode"
+/**
+ * On program startup sets these static variables:
+ * <p>
+ * s_progpath
+ * <p>
+ * s_progname
+ * <p>
+ * Also initializes the logger subsystem.
+ *
+ * @param argc number of command line program arguments (including path of executing program)
+ * @param argv array of strings per the command line arguments
+ */
 static void one_time_init_main(int argc, const char *argv[])
 {
   s_parent_thrd_pid = getpid();
@@ -199,6 +241,27 @@ static void one_time_init_main(int argc, const char *argv[])
 }
 #pragma clang diagnostic pop
 
+/**
+ * Determines any runtime options as supplied in a 'config.ini' file, then
+ * proceeds to fork a child process where a found, standard java launcher
+ * program is invoked via execv(), and the parent process then monitors the
+ * child process execution via waitpid().
+ * <p>
+ * The parent process thereby serves as a watchdog over the child process
+ * context in which the intended java program actually runs. If the child
+ * process abruptly terminates (crashes) then the parent watchdog can see
+ * that and error log it to syslog (or any non-zero status returned by a
+ * terminating child process). The parent process can then do an orderly
+ * exit returning a suitable status code (i.e., no abrupt termination).
+ * <p>
+ * Avoiding abrupt (crashing) process termination will avert situations where
+ * sometimes the Docker service daemon becomes wedged, inoperable, and can
+ * only be remediated by rebooting the host.
+ *
+ * @param argc number of command line program arguments (including path of executing program)
+ * @param argv array of strings per the command line arguments
+ * @return process completion status code (zero indicates successful completion)
+ */
 int main(int argc, const char *argv[]) {
   set_level(LL::TRACE); // comment out this line to disable debug/trace logging verbosity
   one_time_init_main(argc, argv);
@@ -232,7 +295,7 @@ int main(int argc, const char *argv[]) {
                 logging_level = LL::INFO;
               } else if (s_value.compare("warn") == 0) {
                 logging_level = LL::WARN;
-              } else if (s_value.compare("err") == 0) {
+              } else if (s_value.compare("error") == 0) {
                 logging_level = LL::ERR;
               } else {
                 logging_level = LL::INFO;

@@ -20,6 +20,7 @@ Changed API from using const char* to string_view;    Feb 2023, Roger D. Voss
 #define __INI_H__
 
 #include <functional>
+#include <string_view>
 #include <cstdio>
 
 using cfg_parse_handler_t = std::function<int (const std::string_view, const std::string_view, const std::string_view)>;

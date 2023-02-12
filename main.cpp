@@ -416,8 +416,8 @@ int main(int argc, const char *argv[]) {
       }
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-    log(LL::DEBUG, "%s(): **** fork/exec Java launcher child process (pid:%d) for '%s' completed ****\n",
-        __FUNCTION__, pid, java_prog_path.c_str());
+    log(LL::DEBUG, "%s(): **** fork/exec Java launcher child process (pid:%d) for '%s'; exit status: %d ****\n",
+        __FUNCTION__, pid, java_prog_path.c_str(), status);
   }
 
   return EXIT_SUCCESS;

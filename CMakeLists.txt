@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.19)
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
 
-project(watchdog)
+project(java-watchdog)
 
 if(DEFINED ENV{OS} AND "$ENV{OS}" STREQUAL "Windows_NT")
     set(OS_PLATFORM "win32")

@@ -374,8 +374,8 @@ int main(int argc, const char *argv[]) {
     // replace first argv entry of program path with path to the java launcher executable
     argv_arg[0] = strdup(java_prog_path.c_str());
     if (is_debug_level()) {
-      log(LL::DEBUG, "pid(%d): argc: %d ; first arg: '%s', second arg: '%s'",
-          getpid(), argc_arg, argv_arg[0], argv_arg[1]);
+      log(LL::DEBUG, "'%s' ppid(%d); pid(%d):\n\targc: %d ; first arg: '%s', second arg: '%s'",
+          argv[0], getppid(), getpid(), argc_arg, argv_arg[0], argv_arg[1]);
     }
   }
 
@@ -416,8 +416,12 @@ int main(int argc, const char *argv[]) {
       }
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-    log(LL::DEBUG, "%s(): **** fork/exec Java launcher child process (pid:%d) for '%s'; exit status: %d ****\n",
+    log(LL::DEBUG, "%s(): **** fork/exec Java launcher child process (pid:%d) for '%s'; exit status: %d ****",
         __FUNCTION__, pid, java_prog_path.c_str(), status);
+
+    if (status != 0) {
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;
